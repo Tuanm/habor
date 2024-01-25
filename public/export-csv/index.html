@@ -1,0 +1,46 @@
+<div>
+    <textarea aria-multiline="true" placeholder="query" id="query"></textarea>
+</div>
+<button id="button">export</button>
+
+<script>
+    alert('This site is for local administration testing purposes only.');
+    alert(
+        "Enter a query and press 'export' to download the result as a CSV file.",
+    );
+
+    function download(blob) {
+        const a = document.createElement('a');
+        a.href = window.URL.createObjectURL(blob);
+        a.download = `${Date.now()}.csv`;
+        document.body.append(a);
+        a.click();
+        setTimeout(() => {
+            window.URL.revokeObjectURL(a.href);
+            document.body.removeChild(a);
+        }, 0);
+    }
+
+    document.getElementById('button').onclick = async (e) => {
+        const query = document.getElementById('query').value;
+        const { token } = JSON.parse(
+            localStorage.getItem('pb_admin_auth') || '{}',
+        );
+        const res = await fetch('/api/v2/admin/export-csv', {
+            method: 'POST',
+            body: JSON.stringify({
+                query,
+            }),
+            headers: {
+                Authorization: token,
+                Accept: 'text/csv',
+                'Content-Type': 'application/json',
+            },
+        });
+        if (res.status === 200) {
+            download(await res.blob());
+        } else {
+            alert((await res.json())?.message);
+        }
+    };
+</script>

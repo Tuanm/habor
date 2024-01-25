@@ -1,0 +1,51 @@
+#!/bin/bash
+
+export APP_NAME="habor"
+export APP_VERSION="0.21.0"
+
+[ -z "$1" ] && echo "Error: Action missing." && exit 1
+
+if [ ! -z "$2" ]; then
+    export DATA=$2
+else
+    export DATA=/tmp/$APP_NAME
+    echo "Warn: DATA not specified."
+fi
+echo "Info: DATA=$DATA."
+
+prepare_data() {
+    mkdir -p $DATA/v2
+    if [ ! -f "$DATA/v2/data.db" ]; then
+        echo "Warn: No data.db found."
+        cp .docker/data.db.dump $DATA/v2/data.db
+        echo "Info: Initial data.db created."
+    fi
+}
+
+DOCKER_CLI_PLUGINS=$HOME/.docker/cli-plugins
+DOCKER_COMPOSE_VERSION="2.23.3"
+
+install_compose_plugin() {
+    mkdir -p ${DOCKER_CLI_PLUGINS} && \
+        curl -SL https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-linux-x86_64 -o ${DOCKER_CLI_PLUGINS}/docker-compose && \
+        chmod +x ${DOCKER_CLI_PLUGINS}/docker-compose
+}
+
+docker compose version 2> /dev/null || (install_compose_plugin && docker compose version)
+
+restart_nginx() {
+    docker restart $APP_NAME-nginx &> /dev/null
+}
+
+if [ "$1" = "up" ]; then
+    prepare_data
+    docker compose --project-directory .docker up -d --build
+    restart_nginx
+elif [ "$1" = "down" ]; then
+    docker compose --project-directory .docker down
+else
+    echo "Error: action invalid."
+    exit 1
+fi
+
+test true
